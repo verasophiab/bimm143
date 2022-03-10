@@ -3,4 +3,6 @@ bioinformatics BIMM143 class W22 at UC San Diego
 
 
 
-Class 05 Data Visualization added
+
+# Classwork
+- Pertussis [Mini Project](https://github.com/verasophiab/bimm143/blob/main/W10MiniProj/Pertussis_MiniProj_final.pdf)
