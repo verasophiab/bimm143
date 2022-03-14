@@ -1,0 +1,230 @@
+---
+title: "Class 9: Structural Bioinformatics Pt1"
+output: pdf_document
+---
+
+# 1. Introduction to the RCSD Protein Data Bank (PDB)
+
+rcsb.org > Analyze > PDB Statistics> by Experimental Method and Moelcular Type > getcsv file
+
+```{r}
+#Experimental Method and Molecular Type Data
+#put in directory then read the file
+expmetdata <- "Data Export Summary.csv"
+metmol <- read.csv(expmetdata, row.names=1)
+metmol
+```
+> 
+Q1: What percentage of structures in the PDB are solved by X-Ray and Electron Microscopy.
+92.55757% of structures in the PDB are solved by X-Ray and EM.
+
+```{r}
+xray <- sum(metmol$X.ray)
+EM <- sum(metmol$EM)
+total <-  sum(metmol$Total)
+```
+
+```{r}
+#Calculation
+((xray + EM) / total)*100
+```
+
+>
+Q2: What proportion of structures in the PDB are protein?
+In the PDB, proteins make up 0.8726292 of the total strutures proportionally.
+
+```{r}
+protein <- metmol[1, "Total"]
+protein / total
+```
+
+>
+Q3: Type HIV in the PDB website search box on the home page and determine how many HIV-1 protease structures are in the current PDB?
+There are 4,486 structures of search "HIV" in the PDB. Searching "HIV-1 protease" yields 23,735 structures.
+
+
+Downloaded the 1hsg.pdb file from PDB, this allows input into another program for 3D visualization of the HIV-1 protein.
+
+# 2. Visualizing the HIV-1 Protease Structure
+
+VMB was downloaded onto the computer
+The 1hsg.pdb file was loaded into VMB for visualization of structure
+  protein=lines, red dots=water
+  
+  Graphics>Representations gives you different Graphical Representation options ( drawing method, selected atoms, coloring method)
+
+
+> 
+Q4: Water molecules normally have 3 atoms. Why do we see just one atom per water molecule in this structure?
+The hydrogen atoms are not represented because there are too many. The water molecules are represented by their oxygen.
+
+>
+Q5: There is a conserved water molecule in the binding site. Can you identify this water molecule? What residue number does this water molecule have (see note below)?
+The residue number is H308:0
+
+>
+Q6: As you have hopefully observed HIV protease is a homodimer (i.e. it is composed of two identical chains). With the aid of the graphic display and the sequence viewer extension can you identify secondary structure elements that are likely to only form in the dimer rather than the monomer?
+It seems that the dimers intersect where beta sheets form on both monomers.
+
+
+# 3. Introduction to Bio3D in R
+
+```{r}
+library(bio3d)
+```
+
+```{r}
+#With bio3d, can access a pdb file directly by using the PDB identifier
+pdb <- read.pdb("1hsg")
+pdb
+```
+>
+Q7: How many amino acid residues are there in this pdb object? 
+There are 198 amino acid residues.
+
+
+>
+Q8: Name one of the two non-protein residues?
+Water and "MK1" are the two non-protein residues.
+
+>
+Q9: How many protein chains are in this structure?
+There are two protein chains in the structure.
+
+```{r}
+#Inspect PDB item attributes
+attributes(pdb)
+#Access the attributes w/ $, i.e. pdb$atom
+head(pdb$atom)
+```
+
+# 4. Comparative structure analysis of Adenylate Kinase
+
+Goal: PCA on all structures for Adenylate kinase (Adk, transfers phosphaste group ATP/AMP) in PDB. Rxn reqs a "rate limiting conformational transition"
+Analyze shapes of transitions
+
+```{r}
+# can use pca() fn in bio3d to do pca on biomolecular struc data
+```
+
+
+```{r}
+#all the programs we need for this structural analysis
+library(bio3d)
+library(ggplot2)
+library(ggrepel)
+library(devtools)
+library(BiocManager)
+library(msa)
+#library(Grantlab/bio3d-view)
+```
+
+
+>
+Q10. Which of the packages above is found only on BioConductor and not CRAN? 
+The msa package is found only on BioConductor and not CRAN
+
+>
+Q11. Which of the above packages is not found on BioConductor or CRAN?
+The Grantlab/bio3d-view package is not found on BioConductor or CRAN, it is found on BitBucket.
+
+>
+Q12. True or False? Functions from the devtools package can be used to install packages from GitHub and BitBucket?
+True, functions from the devtools package can be used to install packages from Github and BitBucket using devtools::install_github() and devtools::install_bitbucket() with the nae of the package as the function input.
+
+
+Search and Retrieve ADK Structures
+
+get.seq() will fetch a specified query sequence using PDB or UniProt Identifiers
+blast.pdb() will blast search the pdb database for related structures based on query sequence
+```{r}
+#We search for the query seq of Chain A of the PDB 1D 1AKE
+aa <- get.seq("1ake_A")
+```
+
+```{r}
+#output amino acid (query) seq
+aa
+```
+> Q13. How many amino acids are in this sequence, i.e. how long is this sequence?
+There are 214 amino acids in the sequence.
+
+
+```{r}
+#we use the query seq to BLAST search PDB for similar seqs/strucs
+b <- blast.pdb(aa)
+```
+
+
+
+```{r}
+#Plotting a summary of the search results
+hits <- plot(b)
+#Listing some of the top hits
+head(hits$pdb.id)
+```
+
+```{r}
+#Download PDB files
+files <- get.pdb(hits$pdb.id, path="pdbs", split=TRUE, gzip=TRUE)
+```
+
+
+Align and Superpose Structures
+
+pdbaln() fn will align and optionally fit/superimpose identified PDB strucs
+
+```{r}
+library(muscle)
+```
+
+```{r}
+library(bio3d)
+
+
+```
+
+```{r}
+# Align releated PDBs
+pdbs <- pdbaln(files, fit = TRUE)#, exefile="msa")
+```
+
+
+```{r}
+# Vector containing PDB codes for figure axis
+ids <- basename.pdb(pdbs$id)
+
+# Draw schematic alignment
+plot(pdbs, labels=ids)
+```
+
+# Principal Component Analysis
+
+pca.xyz() and pca() fns will perform PCA on structural ensemble stored in pdbs obj
+```{r}
+#Do PCA!
+pc.xray <- pca(pdbs)
+plot(pc.xray)
+```
+
+
+rmsd() calcs all pairwise RMSD values
+
+```{r}
+#RMSD calculation
+rd <-  rmsd(pdbs)
+
+#Struc-based clustering
+hc.rd <- hclust(dist(rd))
+grps.rd <- cutree(hc.rd, k=3)
+
+plot(pc.xray, 1:2, col="grey50", bg=grps.rd, pch=21, cex=1)
+```
+
+
+
+
+
+
+
+
