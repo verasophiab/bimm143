@@ -1,0 +1,235 @@
+---
+title: "Grade Function Lab Week 5"
+author: "Vera Sophia Beliaev"
+date: "2/7/2022"
+output: pdf_document
+---
+
+Today we are creating **R functions** to process grades of a class, dropping the lowest score for each person.
+
+Questions:
+
+> Q1. Write a function grade() to determine an overall grade from a vector of student homework
+assignment scores dropping the lowest single score. If a student misses a homework (i.e. has an
+NA value) this can be used as a score to be potentially dropped. Your final function should be
+adquately explained with code comments and be able to work on an example class gradebook
+such as this one in CSV format: “https://tinyurl.com/gradeinput” [3pts]
+
+```{r}
+# Example input vectors to start with
+student1 <- c(100, 100, 100, 100, 100, 100, 100, 90)
+
+student2 <- c(100, NA, 90, 90, 90, 90, 97, 80)
+
+student3 <- c(90, NA, NA, NA, NA, NA, NA, NA)
+
+```
+
+Write code for a simple version of the problem
+
+```{r}
+#Simple mean()
+student1 <- c(100, 100, 100, 100, 100, 100, 100, 90)
+mean(student1)
+```
+
+Lowest score needs to be identified then dropped
+
+```{r}
+#Find which elemend of the vector contains the lowest score
+which.min(student1)
+```
+
+Need to drop/exclude the lowest score from the mean()
+```{r}
+#This returns everything except the 8th element
+student1[-8]
+
+```
+
+Integrate which.min to find everything except that element
+
+```{r}
+student1[-which.min(student1)]
+```
+
+Calc the mean of all the elements of the vect excluding which.min elem
+
+```{r}
+mean(student1[-which.min(student1)])
+```
+
+Looking to student 2 and 3
+
+We try using the na.rm-TRUE arg but it's not fair
+```{r}
+student2 <- c(100, NA, 90, 90, 90, 90, 97, 80)
+mean(student2, na.rm=TRUE)
+
+
+student3 <- c(90, NA, NA, NA, NA, NA, NA, NA)
+mean(student3, na.rm=TRUE)
+```
+
+Replace all NA values with zero
+
+
+Find the NA elements
+```{r}
+student2 <- c(100, NA, 90, 90, 90, 90, 97, 80)
+x <- student2
+is.na(x)
+
+#tell me which element contains NA value
+which(is.na(x))
+```
+
+NA value is identified, now we need to switch it with a value of zero (mask them)
+
+```{r}
+x[is.na(x)]
+x[is.na(x)] <- 0
+x
+mean(x)
+```
+
+We need to drop the lowest score
+```{r}
+x[is.na(x)] <- 0
+mean(x[-which.min(x)])
+```
+
+Test of student 3
+```{r}
+student3 <- c(90, NA, NA, NA, NA, NA, NA, NA)
+x <- student3
+x[is.na(x)] <- 0
+mean(x[-which.min(x)])
+```
+
+The gold:
+```{r}
+x[is.na(x)] <- 0
+mean(x[-which.min(x)])
+```
+
+## Now we make the function
+
+snippet -> function
+
+Function contains: a name, input args, the body
+
+
+USing RStudio, select 'Code > Extract Function'
+```{r}
+grade <- function(x) {
+  x[is.na(x)] <- 0
+  mean(x[-which.min(x)])
+}
+```
+
+```{r}
+grade(student1)
+grade(student2)
+grade(student3)
+```
+
+
+```{r}
+#' Calculate the average score for a vector of scores, dropping the lowest score. Missing values are given a value of zero.
+#'
+#' @param x A numeric vector of homework scores
+#'
+#' @return Average score
+#' @export
+#'
+#' @examples
+#' student <- c(100, NA, 90, 97)
+#' grade(student)
+#' 
+grade <- function(x) {
+  #Treat missing values as zero, mask NA with zero
+   x[is.na(x)] <- 0
+   #Exclude the lowest score from calculating the mean
+  mean(x[-which.min(x)])
+}
+```
+
+Now we apply the function to the whole class data
+CSV format:"https://tinyurl.com/gradeinput"
+```{r}
+url <- "https://tinyurl.com/gradeinput"
+gradebook <- read.csv(url, row.names=1)
+```
+
+```{r}
+apply(gradebook, 1, grade)
+```
+
+
+
+> Q2.  Using your grade() function and the supplied gradebook, Who is the top scoring student
+overall in the gradebook? [3pts]
+
+```{r}
+#Find the highest scoring student on average
+
+#through sorting
+sort((apply(gradebook, 1, grade)))
+
+#highest average score
+max(apply(gradebook, 1, grade))
+
+#which student scored highest
+which.max(apply(gradebook, 1, grade))
+
+```
+
+
+
+> Q3. From your analysis of the gradebook, which homework was toughest on students (i.e. obtained the lowest scores overall? [2pts]
+
+```{r}
+gradebook
+# Check stats of columns, check mean
+which.min(apply(gradebook, 2, mean, na.rm=TRUE))
+
+#Check stats of columns, check median
+which.min(apply(gradebook, 2, median, na.rm=TRUE))
+
+#make a boxplot
+boxplot(gradebook)
+ 
+```
+
+
+> Q4. Optional Extension: From your analysis of the gradebook, which homework was most
+predictive of overall score (i.e. highest correlation with average grade score)? [1pt]
+
+```{r}
+#correlation b/w x & y (between average overall class score and average score for each homework), apply to the whole vector w/ apply(), 1st mask the NA values w/ zero
+results <- apply(gradebook, 1, grade)
+
+
+masked.gradebook <- gradebook
+masked.gradebook[is.na(masked.gradebook)] <- 0
+
+
+apply(masked.gradebook, 2, cor, x=results)
+
+
+```
+
+
+> Knit the doc to make a PDF using the dropdown menu or switch output at top to pdf_document
+
+
+
+
+
+
+
+
+
+
+
