@@ -1,0 +1,260 @@
+---
+title: "W6_Machine_Learning_LAB"
+author: "Vera Sophia Beliaev"
+date: "2/12/2022"
+output: pdf_document
+---
+
+# K Means 
+
+note to self: Alt+Ctrl+i is shortcut for inserting R code chunk
+In Kmeans, you impose structure onto data by defining the number of clusters
+ 
+```{r}
+#Example data to cluster
+tmp <- c(rnorm(30,-3), rnorm(30,3))
+x <- cbind(x=tmp, y=rev(tmp))
+plot(x)
+```
+ 
+```{r}
+#In kmeans, x is data input, centers is number of desired clusters, nstart is number of iterations)
+k <- kmeans(x, centers=2, nstart=20)
+k
+```
+
+> Q. How many points are in each cluster? 
+
+```{r}
+k$size
+```
+
+> Q.
+  How do we get to the cluster assignment?
+  
+```{r}
+#Which cluster e/ data pnt is assigned to
+k$cluster
+```
+  
+ 
+ > Q. Cluster centers?
+ 
+```{r}
+k$centers
+```
+ 
+ 
+ Application of results
+```{r}
+#plot the kmeans by cluster assignment
+plot(x, col=k$cluster)
+# $ gives access to components of a list, pch= plotting character (shape)
+points(k$centers, col= "blue", pch=15)
+```
+ 
+ 
+ # Hierarchical Clustering
+ 
+ Hierarchical clustering reveals structure in data
+ Cluster the same data w/ hclust()
+ 
+```{r}
+#hclust takes in a dissimilarity struc, not the data, given by distance matrix
+hc <- hclust(dist(x))
+hc
+```
+ 
+```{r}
+#Plot the hclust result
+plot(hc)
+```
+ 
+ 
+ You need to "cut" the tree to figure out cluster membership, use "cutree()"
+ 
+```{r}
+#have to give it a height/h to cut across at,base it on the plot
+#this gives us the cluster membership vector
+#can also do k= to cut into the # of groups you want
+grps <- cutree(hc, h=8)
+```
+ 
+ 
+```{r}
+#Plot the data w/ the hclust() results, color according to group membership
+plot(x, col=grps)
+```
+ 
+ 
+ 
+ # Principal Component Analysis (PCA)
+ 
+ ## PCA of UK food data
+ 
+```{r}
+url <- "https://tinyurl.com/UK-foods"
+#row.names.1 will make it take the row names from the data in our first column
+x <- read.csv(url, row.names=1)
+x
+```
+  > Q1. How many rows and columns are in your new data frame named x? What R functions could you use to answer this questions?
+ 
+```{r}
+ncol(x)
+nrow(x)
+#alternatively, you can use dim() to return both
+```
+ 
+
+
+> Q2.Which approach to solving the ‘row-names problem’ mentioned above do you prefer and why? Is one approach more robust than another under certain circumstances?
+
+The row.names=1 approach as an arg to read.csv seems most efficient
+ 
+ 
+ 
+ 
+ 
+```{r}
+#specify number of rainbow colors, here we base it on number of rows
+barplot(as.matrix(x), col= rainbow(nrow(x)))
+```
+ >Q3. Changing what optional argument in the below barplot() function results in the following plot?
+  Changing the "beside=" argument between TRUE/FALSE switches between the two bar plots.
+ 
+ 
+```{r}
+#beside=T will give juxtaposed bars, default false stacks
+barplot(as.matrix(x), col= rainbow(nrow(x)), beside=TRUE)
+```
+ 
+ 
+ > Q5: Generating all pairwise plots may help somewhat. Can you make sense of the following code and resulting figure? What does it mean if a given point lies on the diagonal for a given plot?
+ The resulting figure compares two countries at a time in each plot. Lying on the diagnol means there is not significant difference between the two.
+ 
+```{r}
+#pairs gives all possible plots of column vs column
+pairs(x, col= rainbow(nrow(x)))
+```
+ 
+ > Q6. What is the main differences between N. Ireland and the other countries of the UK in terms of this data-set?
+ It is hard to tell in which categories but there are some differences i.e. things are not lined up on the diagnol. Potatos and alcohol?
+ 
+ PCA to the rescue
+ 
+ THe main R PCA fn is prcomp(), it reqs the transpose of your input data
+ 
+```{r}
+# t(x) is the transpose of the data which means now the columns are rows and the rows are columns, in this case the food groups are now columns and the countries are the rows
+#for prcomp, you need to use the transpose of the data
+pca <- prcomp(t(x))
+
+```
+ 
+```{r}
+#this hows how well PCA is doing, proportion of variance shows how much variance is captured in e/ PC
+summary(pca)
+```
+
+
+ 
+```{r}
+attributes(pca)
+```
+ 
+ Make new PCA plot (aka PCA score plot), we have to access pca$x
+ 
+```{r}
+pca$x
+```
+ 
+```{r}
+#we want to plot PC1 vs PC2
+plot(pca$x[,1], pca$x[,2])
+text(pca$x[,1], pca$x[,2], colnames(x))
+```
+
+```{r}
+#add color to plot
+country_cols <- c("orange", "red", "blue", "green")
+plot(pca$x[,1], pca$x[,2], xlab= "PC1", ylab = "PC2")
+text(pca$x[,1], pca$x[,2], colnames(x), col=country_cols)
+```
+
+
+
+
+> Q7. Complete the code below to generate a plot of PC1 vs PC2. The second line adds text labels over the data points.
+
+```{r}
+# Plot PC1 vs PC2
+plot(pca$x[,1], pca$x[,2], xlab="PC1", ylab="PC2", xlim=c(-270,500))
+text(pca$x[,1], pca$x[,2], colnames(x))
+```
+
+
+>Q8. Customize your plot so that the colors of the country names match the colors in our UK and Ireland map and table at start of this document.
+
+
+```{r}
+country_cols <- c("orange", "red", "blue", "green")
+plot(pca$x[,1], pca$x[,2], xlab="PC1", ylab="PC2", xlim=c(-270,500))
+text(pca$x[,1], pca$x[,2], colnames(x), col=country_cols)
+```
+
+
+
+
+>Q9: Generate a similar ‘loadings plot’ for PC2. What two food groups feature prominantely and what does PC2 maninly tell us about?
+The biggest contributers to PC2 and are the fresh potatoes and soft drinks food groups.
+
+```{r}
+## Lets focus on PC1 as it accounts for > 90% of variance 
+par(mar=c(10, 3, 0.35, 0))
+barplot( pca$rotation[,2], las=2 )
+```
+
+
+
+## PCA of RNA-seq data
+
+
+```{r}
+#always use read.csv for data files
+url2 <- "https://tinyurl.com/expression-CSV"
+rna.data <- read.csv(url2, row.names=1)
+head(rna.data)
+```
+
+>Q10: How many genes and samples are in this data set?
+There are 100 genes and 10 samples
+
+```{r}
+dim(rna.data)
+```
+
+Make PCA plot
+
+```{r}
+pca <- prcomp(t(rna.data))
+summary(pca)
+```
+
+Most of variance is captured in PC1
+
+
+
+```{r}
+plot(pca$x[,1], pca$x[,2], xlab="PC1", ylab= "PC2")
+```
+
+```{r}
+plot(pca$x[,1], pca$x[,2], xlab="PC1", ylab= "PC2")
+text(pca$x[,1], pca$x[,2], colnames(rna.data))
+```
+
+
+ 
+ 
+ 

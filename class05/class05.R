@@ -1,0 +1,41 @@
+# Week5 Data Visualization
+#author:Vera Sophia Beliaev
+
+#Creating ScatterPlots
+library(ggplot2)
+ggplot(cars)
+ggplot(cars) + aes(x=speed,y=dist)
+ggplot(cars) + aes(x=speed,y=dist) + geom_point()
+ggplot(cars) + aes(x=speed,y=dist) + geom_point() +geom_smooth()
+ggplot(cars) + aes(x=speed,y=dist) + geom_point() +geom_smooth() + theme_bw() + labs(title = "title", caption = "caption",subtitle = "subtitle" )
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+nrow(genes)
+colnames(genes)
+ncol(genes)
+table(genes$State)
+round(table(genes$State)/nrow(genes) *100,2)
+ggplot(genes)
+ggplot(genes) + aes(x=Condition1, y=Condition2) +geom_point()
+ggplot(genes) + aes(x=Condition1, y=Condition2, col= State) +geom_point()
+p <- ggplot(genes) + aes(x=Condition1, y=Condition2, col= State) +geom_point()
+q <- p + scale_colour_manual(values=c("blue","gray", "red"))
+q + labs(title = "Gene Expression Changes Upon Drug Treatment",x="Control(no drug)", y= "Drug Treatment")
+
+#6 Optional/Going Further
+library(gapminder)
+library(dplyr)
+gapminder_2007 <- gapminder %>% filter(year==2007)
+ggplot(gapminder_2007) + aes(x=gdpPercap, y= lifeExp) + geom_point()
+ggplot(gapminder_2007) + aes(x=gdpPercap, y= lifeExp) + geom_point(alpha=0.5)
+ggplot(gapminder_2007) + aes(x=gdpPercap, y= lifeExp, color=continent, size=pop) + geom_point(alpha=0.5)
+ggplot(gapminder_2007) + aes(x=gdpPercap, y= lifeExp, color=pop) + geom_point(alpha=0.8)
+ggplot(gapminder_2007) + aes(x=gdpPercap, y= lifeExp, size=pop) + geom_point(alpha=0.5)
+ggplot(gapminder_2007) + aes(x=gdpPercap, y= lifeExp, size=pop) + geom_point(alpha=0.5) + scale_size_area(max_size = 10)
+gapminder_1957 <- gapminder %>% filter(year==1957)
+ggplot(gapminder_1957)+ aes(x=gdpPercap, y=lifeExp) + geom_point()
+ggplot(gapminder_1957)+ aes(x=gdpPercap, y=lifeExp, color=continent, size=pop) + geom_point()
+ggplot(gapminder_1957)+ aes(x=gdpPercap, y=lifeExp, color=continent, size=pop) + geom_point(alpha=0.7) + scale_size_area(max_size = 15)
+gapminder_1957 <- gapminder %>% filter(year==1957 | year==2007)
+ggplot(gapminder_1957)+ aes(x=gdpPercap, y=lifeExp, color=continent, size=pop) + geom_point(alpha=0.7) + scale_size_area(max_size = 10) + facet_wrap(~year)

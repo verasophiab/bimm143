@@ -1,0 +1,446 @@
+---
+title: "Transcriptomics and the analysis of RNA-Seq data"
+author: "Vera Sophia Beliaev"
+date: "2/26/2022"
+output: pdf_document
+---
+
+# 1. Bioconductor and DESeq2 setup
+Bioconductor and SESeq2 were successfully installed
+
+Alignment Procedure: FASTQ files (contain nt seq and quality scores) aligned to reference and output stored in SAM/BAM format. Then tools must be used to count reads and assign them to genomic features (SAM/BAM files + GFF3 or GTF file) - Ex. kallisto, txlmport. End result is a count matrix that indicates number of reads aligned to a specific gene (rows) for each sample (columns)
+
+DESeq2 Required Inputs: 1. a data.frame of countData (count matrix) and 2. a data.frame with sample metadata i.e. colData (data about the columns i.e. samples), The names of the samples in each data.frame should match, DESeq2 takes in un-normalized counts best
+
+Count matrix: rows can be genes, binding regions (ChIP-Seq), peptide sequences (quantitative mass spec)
+
+
+# 2. Import countData and colData
+
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <-  read.csv("airway_metadata.csv")
+```
+
+```{r}
+head(counts)
+```
+```{r}
+head(metadata)
+```
+> Q1. How many genes are in this dataset?
+There are 38,694 genes in the dataset.
+
+```{r}
+nrow(counts)
+```
+
+
+> Q2. How many ‘control’ cell lines do we have?
+There are 4 control cell lines.
+
+```{r}
+View(metadata)
+```
+
+```{r}
+sum(with(metadata, dex == "control"))
+```
+```{r}
+#Another way of counting:
+sum(metadata$dex == "control")
+```
+
+
+# 3. Toy differential expression
+Note: this section is for control purposes only
+
+
+```{r}
+#This code finds the sample id of control cell lines and calculates the mean counts per gene for those samples
+control <- metadata[metadata[,"dex"]=="control",]
+control.counts <- counts[ ,control$id]
+control.mean <- rowSums( control.counts )/4 
+head(control.mean)
+```
+
+```{r}
+#This is doing the same thing but with the dplyr package
+library(dplyr)
+control <- metadata %>% filter(dex=="control")
+control.counts <- counts %>% select(control$id) 
+control.mean <- rowSums(control.counts)/4
+head(control.mean)
+```
+
+> Q3. How would you make the above code in either approach more robust?
+The division by 4 in the code is specific only to this data. This should be replaced with more general code that counts the number of control cell types in the data.frame for the calculation.
+
+> Q4. Follow the same procedure for the treated samples (i.e. calculate the mean per gene across drug treated samples and assign to a labeled vector called treated.mean)
+
+```{r}
+treated <- metadata[metadata[,"dex"]=="treated",]
+treated.counts <- counts[ ,treated$id]
+treated.mean <- rowSums( treated.counts )/4 
+head(treated.mean)
+```
+
+```{r}
+#Combine meancount data
+meancounts <- data.frame(control.mean, treated.mean)
+```
+
+```{r}
+colSums(meancounts)
+```
+
+
+>Q5 (a). Create a scatter plot showing the mean of the treated samples against the mean of the control samples. Your plot should look something like the following.
+
+```{r}
+#Creating a scatter plot that shows the means against one another
+plot(control.mean, treated.mean, xlab= "Control", ylab= "Treated")
+```
+
+
+>Q5 (b).You could also use the ggplot2 package to make this figure producing the plot below. What geom_?() function would you use for this plot?
+To make the plot, you use the geom_point() function.
+
+```{r}
+#Make the plot using ggplot2
+library(ggplot2)
+ggplot(meancounts, aes(x=control.mean, y=treated.mean)) + geom_point()
+```
+
+
+> Q6. Try plotting both axes on a log scale. What is the argument to plot() that allows you to do this?
+
+
+```{r}
+plot(control.mean, treated.mean, xlab= "log Control Counts", ylab= "log Treated Counts", log="xy")
+```
+
+Log2 value will be zero when there is no change. Doubling gives log2=1, quadruple gives log2=2, halved gives log2=1/2, etc
+```{r}
+#Create new column with transformation
+meancounts$log2fc <- log2(meancounts$treated / meancounts$control)
+```
+
+```{r}
+head(meancounts)
+```
+Now we need to remove results that are "-Inf" or infinity, of "NaN" or not a number.
+
+```{r}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+> Q7. What is the purpose of the arr.ind argument in the which() function call above? Why would we then take the first column of the output and need to call the unique() function?
+The arr.ind argument in the which() function will return the indices of those rows which are TRUE for having meancounts in columns 1 and 2 equal to zero. This output gives the row index in the first column and the column index in the second column. The unique() function ensures no row is duplicated before removing them.
+
+
+
+Now let's see which genes are up or downregulated using the common threshold where log2(foldchange) is greater than 2 or less than -2
+
+```{r}
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+```
+
+
+> Q8. Using the up.ind vector above can you determine how many up regulated genes we have at the greater than 2 fc level? 
+There are 250 up regulated genes at the greater than 2 fc level.
+
+```{r}
+sum(up.ind)
+```
+
+
+> Q9. Using the down.ind vector above can you determine how many down regulated genes we have at the greater than 2 fc level?
+There are 367 down regulated genes at the less than -2 fc level
+
+```{r}
+sum(down.ind)
+```
+
+
+> Q10. Do you trust these results? Why or why not?
+There is no indication of significance at this point, so no.
+
+# 4. DESeq2 analysis
+
+```{r}
+library(DESeq2)
+```
+
+DESeq works on a DESeqDataSet which contains 1. a count matrix, 2. a metadata file, 3. a formula that indicates the experiment design (design formula)
+Design formula tells which cols in colData (has sample metadata) specify experimental design and how these factors should be used in analysis i.e. the formula shows how the counts for each gene depend on the vars in colData
+
+
+```{r}
+#Create the DESeqDataSet
+# dex is specified as part of experimental design with the tilde ~
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex)
+dds
+```
+
+Now we will run DESeq on that DESeqDataSet
+
+```{r}
+#Run DESeq and assign the result to the same var
+dds <- DESeq(dds)
+```
+
+```{r}
+#Now we look at the results of DESeq
+res <- results(dds)
+res
+```
+Let's make the results easier to view by converting the results to a data.frame before viewing
+
+```{r}
+head(as.data.frame(res))
+```
+
+```{r}
+summary(res)
+#here, by default alpha=0.1
+```
+
+```{r}
+#adjust alpha value
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+
+# 5. Adding annotation data
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+```{r}
+columns(org.Hs.eg.db)
+```
+
+```{r}
+#we add individ cols to our results table. we use row names as a key, specified keytype as ensembl, col arg tells which info we want, miltivals arg says what to do if there are multiple possible values for single input (we specify to use the first from the db)
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="SYMBOL",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+#now you can see the symbol column added onto our results
+head(res)
+```
+
+>Q11. Run the mapIds() function two more times to add the Entrez ID and UniProt accession and GENENAME as new columns called res$entrez, res$uniprot and res$genename.
+
+Note: column arg specifies which info to pull from ensembl
+Note: dataf$NewColumn <- values creates new column in data frame
+
+```{r}
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="ENTREZID",          # The new format we want to add
+                     multiVals="first")
+```
+```{r}
+res$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="UNIPROT",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="GENENAME",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{r}
+head(res)
+```
+
+```{r}
+#Order the results by adj p value
+ord <- order( res$padj )
+#View(res[ord,])
+head(res[ord,])
+```
+
+```{r}
+#show ordered sig results w/ annotations
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+
+# 6. Data Visualization
+
+Volcano Plots
+
+```{r}
+#simple volcano plot
+plot( res$log2FoldChange,  -log(res$padj), 
+      xlab="Log2(FoldChange)",
+      ylab="-Log(P-value)")
+```
+
+```{r}
+#use abline() and color to highlight genes that have padj<0.05 and the abs log2FOldChange>2
+plot( res$log2FoldChange,  -log(res$padj), 
+ ylab="-Log(P-value)", xlab="Log2(FoldChange)")
+
+# Add some cut-off lines
+abline(v=c(-2,2), col="darkgray", lty=2)
+abline(h=-log(0.05), col="darkgray", lty=2)
+```
+
+```{r}
+#add color
+# Setup our custom point color vector 
+mycols <- rep("gray", nrow(res))
+mycols[ abs(res$log2FoldChange) > 2 ]  <- "red" 
+
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+
+# Volcano plot with custom colors 
+plot( res$log2FoldChange,  -log(res$padj), 
+ col=mycols, ylab="-Log(P-value)", xlab="Log2(FoldChange)" )
+
+# Cut-off lines
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+```
+
+The EnhancedVolcano package can be useful
+```{r}
+library(EnhancedVolcano)
+```
+```{r}
+#Volcano plot with most interesting genes labeled by name
+x <- as.data.frame(res)
+
+EnhancedVolcano(x,
+    lab = x$symbol,
+    x = 'log2FoldChange',
+    y = 'pvalue')
+```
+
+# 7. Pathway Analysis
+
+Here we will use the GAGE package and the KEGG pathway database for KEGG pathway enrichment analysis. The pathview package will draw pathway diagrams
+
+
+```{r}
+library(pathview)
+library(gage)
+library(gageData)
+
+```
+```{r}
+#kegg.sets.hs is a list of 229 elements, e/ elem is a character vect of entrez ids for a KEGG pathway. gageData package has databases mapping genes to KEGG pathways and GO terms for common orgs
+
+data(kegg.sets.hs)
+
+# Examine the first 2 pathways in this kegg set for humans
+head(kegg.sets.hs, 2)
+```
+gage() fn requires 1. a named vector of fold changes (ours are stored from DESeq2 analysis in res) and 2. Entrez gene IDs (ours are stored in a made res column)
+
+```{r}
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+```{r}
+# Get the results
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+```{r}
+attributes(keggres)
+```
+```{r}
+# Look at the first three down (less) pathways, the rows are sorted by p-value
+head(keggres$less, 3)
+```
+
+```{r}
+#make a pathway plot with the pathview package, downloads pathway difure data from KEGG and adds our results
+pathview(gene.data=foldchanges, pathway.id="hsa05310")
+```
+```{r}
+# A different PDF based output of the same data
+pathview(gene.data=foldchanges, pathway.id="hsa05310", kegg.native=FALSE)
+```
+
+> Q12. Can you do the same procedure as above to plot the pathview figures for the top 2 down-reguled pathways?
+
+```{r}
+# Look at the first 2 up (greater) pathways
+head(keggres$greater, 2)
+```
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa00500 ")
+```
+
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa00330")
+```
+
+
+
+# Plotting counts for genes of interest
+DESeq2 has plotCounts() which takes 1. DESeqDataSet, 2. gene name, 3. var from colData and makes a plot
+
+```{r}
+#find gene ID for CRISPLD2 gene
+i <- grep("CRISPLD2", res$symbol)
+res[i,]
+```
+```{r}
+rownames(res[i,])
+```
+
+```{r}
+#plot the counts
+plotCounts(dds, gene="ENSG00000103196", intgroup="dex")
+```
+
+Let's take the data from this and use it in ggplot
+
+```{r}
+# Return the data
+d <- plotCounts(dds, gene="ENSG00000103196", intgroup="dex", returnData=TRUE)
+head(d)
+```
+
+```{r}
+boxplot(count ~ dex , data=d)
+```
+
+```{r}
+library(ggplot2)
+ggplot(d, aes(dex, count, fill=dex)) + 
+  geom_boxplot() + 
+  scale_y_log10() + 
+  ggtitle("CRISPLD2")
+```
