@@ -10,7 +10,7 @@ Winter 2022
 - Lab 5: [Structural Bioinformatics](https://github.com/verasophiab/bimm143/blob/a0cd265aed25ae413d81055b015003e660a9713b/Class09/C9_Structural_Bioinformatics_P1.pdf)
 - Lab 6: [Genome Informatics](https://github.com/verasophiab/bimm143/blob/d3310bb6c22763106ad9e9c6bc32a7ac66a53d56/Wk8_Genomics/Wk8_Genomics_Lab_final.pdf)
 - Lab 7: [Transcriptomics & RNA Sequencing Analysis](https://github.com/verasophiab/bimm143/blob/d3310bb6c22763106ad9e9c6bc32a7ac66a53d56/Transcriptomics/Transcriptomics_and_RNA_Seq_analysis_final.pdf)
-- Lab 8: [COVID Vaccination Rate Analysis](
+- Lab 8: [COVID Vaccination Rate Analysis](https://github.com/verasophiab/bimm143/blob/f4d7fe3f2575d9bd371598b463bc09cc5f3de67a/COVID_mini_project_final.pdf)
 - Lab 9: [Pertussis Resurgence Analysis](https://github.com/verasophiab/bimm143/blob/main/W10MiniProj/Pertussis_MiniProj_final.pdf)
 
 
