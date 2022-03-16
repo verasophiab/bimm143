@@ -1,6 +1,7 @@
 # BIMM143 Introduction to Bioinformatics
-Universty of California, San Diego
-Winter 2022
+Universty of California, San Diego;
+Winter 2022;
+Professor Barry Grant
 
 # Classwork
 - Lab 1: [Data Visualization](https://github.com/verasophiab/bimm143/blob/d3310bb6c22763106ad9e9c6bc32a7ac66a53d56/class05/Data_Visualization.pdf)
