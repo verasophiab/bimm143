@@ -3,6 +3,8 @@ Universty of California, San Diego;
 Winter 2022;
 Professor Barry Grant
 
+All projects done with R
+
 # Classwork
 - Lab 1: [Data Visualization](https://github.com/verasophiab/bimm143/blob/d3310bb6c22763106ad9e9c6bc32a7ac66a53d56/class05/Data_Visualization.pdf)
 - Lab 2: [Creating a Grading Function](https://github.com/verasophiab/bimm143/blob/7bd352f869c7aa0bd07f622bfc5859e3c4d17efd/Class06/GradesFunctionLab.pdf)
